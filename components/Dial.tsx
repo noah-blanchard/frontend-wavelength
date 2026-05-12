@@ -2,6 +2,7 @@
 
 import { animate, motion, useMotionValue, useSpring } from "framer-motion";
 import { useCallback, useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
 
 const clampAngle = (angle: number) => Math.max(0, Math.min(180, angle));
 
@@ -105,6 +106,7 @@ export const Dial = ({
   interactive = false,
   animateReveal = false,
 }: DialProps) => {
+  const { t } = useTranslation();
   const cx = 200;
   const cy = 200;
   const radius = 160;
@@ -214,7 +216,7 @@ export const Dial = ({
           className="w-full"
           viewBox="0 0 400 220"
           role="img"
-          aria-label="Wavelength dial"
+          aria-label={t("dial.ariaLabel")}
         >
           <defs>
             <linearGradient id="dialStroke" x1="0" x2="1" y1="0" y2="0">
@@ -274,17 +276,17 @@ export const Dial = ({
             onPointerUp={handlePointerUp}
             onPointerCancel={handlePointerUp}
             onPointerLeave={handlePointerUp}
-            aria-label="Angle"
+            aria-label={t("dial.dragLabel")}
           />
         ) : null}
       </div>
 
       <div className="mt-3 flex justify-between text-sm text-slate-300">
         <span className="max-w-[45%] text-left">
-          {leftLabel || "Extreme gauche"}
+          {leftLabel || t("dial.leftDefault")}
         </span>
         <span className="max-w-[45%] text-right">
-          {rightLabel || "Extreme droite"}
+          {rightLabel || t("dial.rightDefault")}
         </span>
       </div>
     </div>

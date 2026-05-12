@@ -2,6 +2,7 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Dial } from "../components/Dial";
 import { useSocket } from "../hooks/useSocket";
 
@@ -13,6 +14,7 @@ type GuideFormProps = {
 };
 
 const GuideForm = ({ onSubmit, onSfx }: GuideFormProps) => {
+  const { t } = useTranslation();
   const [leftExtreme, setLeftExtreme] = useState("");
   const [rightExtreme, setRightExtreme] = useState("");
   const [clue, setClue] = useState("");
@@ -30,26 +32,26 @@ const GuideForm = ({ onSubmit, onSfx }: GuideFormProps) => {
       transition={{ duration: 0.4, ease: "easeOut" }}
     >
       <p className="text-sm text-emerald-200">
-        Tu es le Guide. Invente ton axe et ton indice.
+        {t("guideForm.hint")}
       </p>
       <div className="grid gap-3 sm:grid-cols-2">
         <input
           value={leftExtreme}
           onChange={(event) => setLeftExtreme(event.target.value)}
-          placeholder="Extreme gauche"
+          placeholder={t("guideForm.leftPlaceholder")}
           className="rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-sm text-white outline-none focus:border-emerald-300"
         />
         <input
           value={rightExtreme}
           onChange={(event) => setRightExtreme(event.target.value)}
-          placeholder="Extreme droite"
+          placeholder={t("guideForm.rightPlaceholder")}
           className="rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-sm text-white outline-none focus:border-emerald-300"
         />
       </div>
       <input
         value={clue}
         onChange={(event) => setClue(event.target.value)}
-        placeholder="Indice"
+        placeholder={t("guideForm.cluePlaceholder")}
         className="rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-sm text-white outline-none focus:border-emerald-300"
       />
       <motion.button
@@ -63,13 +65,14 @@ const GuideForm = ({ onSubmit, onSfx }: GuideFormProps) => {
         whileHover={{ scale: 1.02, y: -2 }}
         whileTap={{ scale: 0.98 }}
       >
-        Valider le theme
+        {t("guideForm.submitTheme")}
       </motion.button>
     </motion.div>
   );
 };
 
 export default function Home() {
+  const { t, i18n } = useTranslation();
   const {
     connected,
     roomState,
@@ -96,6 +99,11 @@ export default function Home() {
   const audioRef = useRef<AudioContext | null>(null);
   const lastRevealIdRef = useRef<string | null>(null);
   const isInRoom = Boolean(roomState);
+  const currentLang = i18n.resolvedLanguage?.startsWith("fr") ? "fr" : "en";
+
+  const handleLocaleChange = (lang: "en" | "fr") => {
+    i18n.changeLanguage(lang);
+  };
 
   const playSfx = (
     frequency = 520,
@@ -254,28 +262,43 @@ export default function Home() {
   }, [otherNeedles.length, roomState]);
 
   useEffect(() => {
+    let nextAngle: number | null = null;
+
     if (!isInteractive) {
       pendingCommitRef.current = null;
-      setLocalAngle(currentAngle);
+      nextAngle = currentAngle;
+    } else if (!isDragging) {
+      const pendingCommit = pendingCommitRef.current;
+      if (pendingCommit === null) {
+        nextAngle = currentAngle;
+      } else if (Math.abs(currentAngle - pendingCommit) <= 0.5) {
+        pendingCommitRef.current = null;
+        nextAngle = currentAngle;
+      }
+    }
+
+    if (nextAngle === null) {
       return;
     }
-    if (isDragging) {
-      return;
-    }
-    const pendingCommit = pendingCommitRef.current;
-    if (pendingCommit === null) {
-      setLocalAngle(currentAngle);
-      return;
-    }
-    if (Math.abs(currentAngle - pendingCommit) <= 0.5) {
-      pendingCommitRef.current = null;
-      setLocalAngle(currentAngle);
-    }
+
+    const timeoutId = window.setTimeout(() => {
+      setLocalAngle(nextAngle);
+    }, 0);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
   }, [currentAngle, isDragging, isInteractive]);
 
   useEffect(() => {
     if (!isInteractive) {
-      setIsDragging(false);
+      const timeoutId = window.setTimeout(() => {
+        setIsDragging(false);
+      }, 0);
+
+      return () => {
+        window.clearTimeout(timeoutId);
+      };
     }
   }, [isInteractive]);
 
@@ -292,17 +315,11 @@ export default function Home() {
   };
 
   const phaseLabel = useMemo(() => {
-    switch (roomState?.phase) {
-      case "guide":
-        return "Phase 1 — Le Guide propose";
-      case "guess":
-        return "Phase 2 — Les devineurs ajustent";
-      case "reveal":
-        return "Phase 3 — Revelation";
-      default:
-        return "";
+    if (!roomState?.phase) {
+      return "";
     }
-  }, [roomState?.phase]);
+    return t(`game.phase.${roomState.phase}`);
+  }, [roomState?.phase, t]);
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -336,21 +353,55 @@ export default function Home() {
           animate="show"
           variants={containerVariants}
         >
-          <motion.p
-            className="text-sm uppercase tracking-[0.3em] text-emerald-200/70"
-            variants={itemVariants}
-          >
-            Cercle — Wavelength Live
-          </motion.p>
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <motion.p
+              className="text-sm uppercase tracking-[0.3em] text-emerald-200/70"
+              variants={itemVariants}
+            >
+              {t("app.title")}
+            </motion.p>
+            <motion.div
+              className="flex items-center gap-1 rounded-full border border-white/15 bg-black/30 p-1"
+              role="group"
+              aria-label={t("language.toggleLabel")}
+              variants={itemVariants}
+            >
+              <button
+                type="button"
+                onClick={() => handleLocaleChange("en")}
+                aria-label={t("language.english")}
+                aria-pressed={currentLang === "en"}
+                className={`rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] transition ${
+                  currentLang === "en"
+                    ? "bg-emerald-300 text-slate-900"
+                    : "text-slate-300 hover:text-white"
+                }`}
+              >
+                EN
+              </button>
+              <button
+                type="button"
+                onClick={() => handleLocaleChange("fr")}
+                aria-label={t("language.french")}
+                aria-pressed={currentLang === "fr"}
+                className={`rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] transition ${
+                  currentLang === "fr"
+                    ? "bg-emerald-300 text-slate-900"
+                    : "text-slate-300 hover:text-white"
+                }`}
+              >
+                FR
+              </button>
+            </motion.div>
+          </div>
           <motion.h1
             className="text-3xl font-semibold text-slate-50 sm:text-4xl"
             variants={itemVariants}
           >
-            Ajustez l&apos;aiguille. Trouvez la zone cible.
+            {t("app.heroTitle")}
           </motion.h1>
           <motion.p className="max-w-2xl text-slate-300" variants={itemVariants}>
-            Un Guide place un indice entre deux extremes. Les devineurs
-            synchronisent l&apos;aiguille pour viser la zone cachee.
+            {t("app.heroSubtitle")}
           </motion.p>
         </motion.header>
 
@@ -365,7 +416,7 @@ export default function Home() {
               transition={{ duration: 0.5 }}
             >
               <motion.div className="rounded-3xl border border-white/10 bg-white/5 p-8 backdrop-blur">
-              <h2 className="text-xl font-semibold">Entrer dans une room</h2>
+              <h2 className="text-xl font-semibold">{t("lobby.enterRoom")}</h2>
               <div className="mt-6 flex gap-3">
                 <motion.button
                   type="button"
@@ -378,7 +429,7 @@ export default function Home() {
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                 >
-                  Creer une room
+                  {t("lobby.createRoom")}
                 </motion.button>
                 <motion.button
                   type="button"
@@ -391,24 +442,24 @@ export default function Home() {
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                 >
-                  Rejoindre
+                  {t("lobby.joinRoom")}
                 </motion.button>
               </div>
 
               <div className="mt-6 grid gap-4">
                 <label className="text-sm text-slate-300">
-                  Pseudo
+                  {t("lobby.nameLabel")}
                   <input
                     value={name}
                     onChange={(event) => setName(event.target.value)}
-                    placeholder="Votre nom"
+                    placeholder={t("lobby.namePlaceholder")}
                     className="mt-2 w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-base text-white outline-none transition focus:border-emerald-300"
                   />
                 </label>
 
                 {mode === "join" ? (
                   <label className="text-sm text-slate-300">
-                    Code room
+                    {t("lobby.roomCodeLabel")}
                     <input
                       value={roomCode}
                       onChange={(event) =>
@@ -431,7 +482,7 @@ export default function Home() {
                       }
                       className="h-4 w-4 rounded border-white/20 bg-black/60 text-emerald-300"
                     />
-                    Aiguille par joueur (mode individuel)
+                    {t("lobby.perPlayerNeedle")}
                   </label>
                 ) : null}
 
@@ -449,11 +500,15 @@ export default function Home() {
                 whileHover={{ scale: 1.01, y: -2 }}
                 whileTap={{ scale: 0.98 }}
               >
-                {mode === "create" ? "Creer et demarrer" : "Rejoindre"}
+                {mode === "create"
+                  ? t("lobby.startCreate")
+                  : t("lobby.startJoin")}
               </motion.button>
 
               <p className="mt-4 text-xs text-slate-400">
-                Statut: {connected ? "connecte" : "deconnecte"}
+                {t("lobby.status", {
+                  state: connected ? t("lobby.connected") : t("lobby.disconnected"),
+                })}
               </p>
               </motion.div>
 
@@ -463,11 +518,13 @@ export default function Home() {
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.6, ease: "easeOut" }}
               >
-                <h3 className="text-lg font-semibold">Regles rapides</h3>
+                <h3 className="text-lg font-semibold">
+                  {t("lobby.quickRulesTitle")}
+                </h3>
                 <ul className="mt-4 space-y-3 text-sm text-slate-300">
-                  <li>Le Guide voit la zone cible et propose un theme.</li>
-                  <li>Les devineurs tournent l&apos;aiguille ensemble.</li>
-                  <li>Validez pour reveler la cible et le score.</li>
+                  <li>{t("lobby.rule1")}</li>
+                  <li>{t("lobby.rule2")}</li>
+                  <li>{t("lobby.rule3")}</li>
                 </ul>
               </motion.div>
             </motion.section>
@@ -484,11 +541,15 @@ export default function Home() {
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <p className="text-sm uppercase tracking-[0.3em] text-emerald-200/70">
-                    Room {roomState?.roomCode}
+                    {t("game.roomCode", { code: roomState?.roomCode ?? "" })}
                   </p>
                   <h2 className="text-xl font-semibold">{phaseLabel}</h2>
                   <p className="mt-2 text-xs text-slate-400">
-                    Aiguille: {roomState?.perPlayerNeedles ? "individuelle" : "commune"}
+                    {t("game.needleLabel", {
+                      mode: roomState?.perPlayerNeedles
+                        ? t("game.needleMode.individual")
+                        : t("game.needleMode.common"),
+                    })}
                   </p>
                 </div>
                 <motion.button
@@ -498,7 +559,7 @@ export default function Home() {
                   whileHover={{ scale: 1.04 }}
                   whileTap={{ scale: 0.98 }}
                 >
-                  Quitter
+                  {t("game.leave")}
                 </motion.button>
               </div>
 
@@ -534,7 +595,7 @@ export default function Home() {
                       />
                     ) : (
                       <p className="text-sm text-slate-300">
-                        Le Guide choisit le theme. Patientez...
+                        {t("game.guideWaiting")}
                       </p>
                     )}
                   </div>
@@ -544,7 +605,7 @@ export default function Home() {
                   <div className="w-full rounded-2xl border border-white/10 bg-black/30 p-6">
                     <p className="text-sm text-slate-200">{roomState.clue}</p>
                     <p className="mt-2 text-sm text-slate-400">
-                      Ajustez l&apos;aiguille ensemble puis validez.
+                      {t("game.guessPrompt")}
                     </p>
                     {roomState.perPlayerNeedles ? (
                       <div className="mt-4 grid gap-3">
@@ -557,11 +618,14 @@ export default function Home() {
                             whileHover={{ scale: 1.02 }}
                             whileTap={{ scale: 0.98 }}
                           >
-                            {hasLocked ? "En attente" : "Valider"}
+                            {hasLocked ? t("game.lockWaiting") : t("game.lock")}
                           </motion.button>
                         ) : null}
                         <p className="text-xs text-slate-400">
-                          Valide: {lockedCount}/{requiredLocks} devineurs
+                          {t("game.lockStatus", {
+                            locked: lockedCount,
+                            required: requiredLocks,
+                          })}
                         </p>
                       </div>
                     ) : !isGuide ? (
@@ -572,11 +636,11 @@ export default function Home() {
                         whileHover={{ scale: 1.02 }}
                         whileTap={{ scale: 0.98 }}
                       >
-                        Valider
+                        {t("game.lock")}
                       </motion.button>
                     ) : (
                       <p className="mt-4 text-xs text-slate-400">
-                        Attendez que les devineurs verrouillent.
+                        {t("game.waitingForGuessers")}
                       </p>
                     )}
                   </div>
@@ -586,7 +650,7 @@ export default function Home() {
                   <div className="w-full rounded-2xl border border-white/10 bg-black/30 p-6">
                     {roomState.perPlayerNeedles ? (
                       <div className="space-y-2 text-sm text-emerald-200">
-                        <p>Scores individuels</p>
+                        <p>{t("game.scoresIndividual")}</p>
                         <div className="grid gap-2 text-slate-100">
                           {roomState.players.map((player) => {
                             const score = roomState.lastScores?.[player.id] ?? 0;
@@ -608,7 +672,7 @@ export default function Home() {
                                   {player.name}
                                 </span>
                                 <span className="text-xs text-emerald-100">
-                                  {score} pts
+                                  {t("game.scorePoints", { score })}
                                 </span>
                               </div>
                             );
@@ -617,7 +681,9 @@ export default function Home() {
                       </div>
                     ) : (
                       <p className="text-sm text-emerald-200">
-                        Score: {roomState.lastScore ?? 0} points
+                        {t("game.scoreTotal", {
+                          score: roomState.lastScore ?? 0,
+                        })}
                       </p>
                     )}
                     <motion.button
@@ -627,7 +693,7 @@ export default function Home() {
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
                     >
-                      Manche suivante
+                      {t("game.nextRound")}
                     </motion.button>
                   </div>
                 ) : null}
@@ -641,7 +707,7 @@ export default function Home() {
               transition={{ duration: 0.6, ease: "easeOut" }}
             >
               <h3 className="text-sm uppercase tracking-[0.2em] text-slate-300">
-                Joueurs
+                {t("game.players")}
               </h3>
               <div className="mt-4 space-y-3">
                 {roomState?.players.map((player) => {
@@ -666,7 +732,7 @@ export default function Home() {
                         {player.name}
                       </span>
                       <span className="text-xs">
-                        {playerIsGuide ? "Guide" : "Devineur"}
+                        {playerIsGuide ? t("game.role.guide") : t("game.role.guesser")}
                       </span>
                     </motion.div>
                   );
