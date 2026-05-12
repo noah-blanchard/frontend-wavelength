@@ -84,6 +84,7 @@ type DialProps = {
   leftLabel?: string;
   rightLabel?: string;
   otherNeedles?: { angle: number; color: string }[];
+  showSelfNeedle?: boolean;
   selfColor?: string;
   interactive?: boolean;
   animateReveal?: boolean;
@@ -99,6 +100,7 @@ export const Dial = ({
   leftLabel,
   rightLabel,
   otherNeedles = [],
+  showSelfNeedle = true,
   selfColor = "#F8FAFC",
   interactive = false,
   animateReveal = false,
@@ -246,17 +248,19 @@ export const Dial = ({
             />
           ))}
 
-          <motion.g ref={selfNeedleRef as React.Ref<SVGGElement>}>
-            <line
-              x1={cx}
-              y1={cy}
-              x2={cx}
-              y2={cy - radius + 12}
-              stroke={selfColor}
-              strokeWidth={6}
-              strokeLinecap="round"
-            />
-          </motion.g>
+          {showSelfNeedle ? (
+            <motion.g ref={selfNeedleRef as React.Ref<SVGGElement>}>
+              <line
+                x1={cx}
+                y1={cy}
+                x2={cx}
+                y2={cy - radius + 12}
+                stroke={selfColor}
+                strokeWidth={6}
+                strokeLinecap="round"
+              />
+            </motion.g>
+          ) : null}
 
           <circle cx={cx} cy={cy} r="6" fill="#F8FAFC" />
         </svg>

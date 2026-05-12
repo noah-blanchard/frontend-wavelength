@@ -92,6 +92,7 @@ export default function Home() {
   const [perPlayerNeedles, setPerPlayerNeedles] = useState(false);
   const [localAngle, setLocalAngle] = useState(90);
   const [isDragging, setIsDragging] = useState(false);
+  const pendingCommitRef = useRef<number | null>(null);
   const audioRef = useRef<AudioContext | null>(null);
   const lastRevealIdRef = useRef<string | null>(null);
   const isInRoom = Boolean(roomState);
@@ -216,10 +217,19 @@ export default function Home() {
   );
   const selfColor = playerId ? playerColors[playerId] ?? "#F8FAFC" : "#F8FAFC";
 
+  const hideGuideNeedle =
+    isGuide &&
+    (roomState?.phase === "guess" || roomState?.phase === "reveal");
+  const showSelfNeedle = !hideGuideNeedle;
+
   const otherNeedles =
     roomState?.phase === "reveal" && roomState.perPlayerNeedles
       ? Object.entries(roomState.needleAngles ?? {})
-          .filter(([playerIdEntry]) => playerIdEntry !== playerId)
+          .filter(
+            ([playerIdEntry]) =>
+              playerIdEntry !== playerId &&
+              playerIdEntry !== roomState?.guideId
+          )
           .map(([playerIdEntry, angle]) => ({
             angle,
             color: playerColors[playerIdEntry] ?? "#94A3B8",
@@ -244,10 +254,24 @@ export default function Home() {
   }, [otherNeedles.length, roomState]);
 
   useEffect(() => {
-    if (!isDragging) {
+    if (!isInteractive) {
+      pendingCommitRef.current = null;
+      setLocalAngle(currentAngle);
+      return;
+    }
+    if (isDragging) {
+      return;
+    }
+    const pendingCommit = pendingCommitRef.current;
+    if (pendingCommit === null) {
+      setLocalAngle(currentAngle);
+      return;
+    }
+    if (Math.abs(currentAngle - pendingCommit) <= 0.5) {
+      pendingCommitRef.current = null;
       setLocalAngle(currentAngle);
     }
-  }, [currentAngle, isDragging]);
+  }, [currentAngle, isDragging, isInteractive]);
 
   useEffect(() => {
     if (!isInteractive) {
@@ -263,6 +287,7 @@ export default function Home() {
   const handleAngleCommit = (nextAngle: number) => {
     setLocalAngle(nextAngle);
     setIsDragging(false);
+    pendingCommitRef.current = nextAngle;
     updateNeedle(nextAngle);
   };
 
@@ -493,6 +518,7 @@ export default function Home() {
                   leftLabel={roomState?.extremes.left}
                   rightLabel={roomState?.extremes.right}
                   otherNeedles={otherNeedles}
+                  showSelfNeedle={showSelfNeedle}
                   selfColor={selfColor}
                   animateReveal={roomState?.phase === "reveal"}
                   interactive={isInteractive}
