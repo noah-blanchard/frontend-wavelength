@@ -1,6 +1,7 @@
 "use client";
 
-import type { ChangeEvent } from "react";
+import { animate, motion, useMotionValue } from "framer-motion";
+import { useEffect, useRef, type ChangeEvent } from "react";
 
 const clampAngle = (angle: number) => Math.max(0, Math.min(180, angle));
 
@@ -11,6 +12,66 @@ const toPoint = (angle: number, radius: number, cx: number, cy: number) => {
     x: cx + radius * Math.cos(rad),
     y: cy - radius * Math.sin(rad),
   };
+};
+
+type OtherNeedleProps = {
+  angle: number;
+  color: string;
+  cx: number;
+  cy: number;
+  radius: number;
+  animateReveal: boolean;
+  delay: number;
+};
+
+const OtherNeedle = ({
+  angle,
+  color,
+  cx,
+  cy,
+  radius,
+  animateReveal,
+  delay,
+}: OtherNeedleProps) => {
+  const targetRotation = clampAngle(angle) - 90;
+  const rotVal = useMotionValue(animateReveal ? -90 : targetRotation);
+  const opVal = useMotionValue(animateReveal ? 0 : 1);
+  const gRef = useRef<SVGGElement>(null);
+
+  useEffect(() => {
+    const applyTransform = (r: number) => {
+      gRef.current?.setAttribute("transform", `rotate(${r} ${cx} ${cy})`);
+    };
+    applyTransform(rotVal.get());
+    const unsubRot = rotVal.on("change", applyTransform);
+
+    if (!animateReveal) return unsubRot;
+
+    const tid = window.setTimeout(() => {
+      animate(rotVal, targetRotation, { duration: 2.4, ease: [0.16, 1, 0.3, 1] });
+      animate(opVal, 1, { duration: 0.4 });
+    }, delay * 1000);
+
+    return () => {
+      clearTimeout(tid);
+      unsubRot();
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return (
+    <motion.g ref={gRef as React.Ref<SVGGElement>} style={{ opacity: opVal }}>
+      <line
+        x1={cx}
+        y1={cy}
+        x2={cx}
+        y2={cy - radius + 12}
+        stroke={color}
+        strokeWidth={3}
+        strokeLinecap="round"
+      />
+    </motion.g>
+  );
 };
 
 type DialProps = {
@@ -24,6 +85,7 @@ type DialProps = {
   otherNeedles?: { angle: number; color: string }[];
   selfColor?: string;
   interactive?: boolean;
+  animateReveal?: boolean;
 };
 
 export const Dial = ({
@@ -37,12 +99,11 @@ export const Dial = ({
   otherNeedles = [],
   selfColor = "#F8FAFC",
   interactive = false,
+  animateReveal = false,
 }: DialProps) => {
   const cx = 200;
   const cy = 200;
   const radius = 160;
-
-  const needleRotation = clampAngle(angle) - 90;
 
   const targetSpan = Math.max(0, Math.min(180, targetSize));
   const targetStart =
@@ -51,9 +112,7 @@ export const Dial = ({
     targetAngle === null ? null : clampAngle(targetAngle + targetSpan / 2);
 
   const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
-    if (!onAngleChange) {
-      return;
-    }
+    if (!onAngleChange) return;
     onAngleChange(Number(event.target.value));
   };
 
@@ -108,18 +167,23 @@ export const Dial = ({
           ) : null}
 
           <path
-            d={`M ${cx - radius} ${cy} A ${radius} ${radius} 0 0 1 ${
-              cx + radius
-            } ${cy}`}
+            d={`M ${cx - radius} ${cy} A ${radius} ${radius} 0 0 1 ${cx + radius} ${cy}`}
             fill="none"
             stroke="url(#dialStroke)"
             strokeWidth="8"
           />
 
           {otherNeedles.map((needle, index) => (
-            <g key={`other-${index}`}>
-              {renderNeedle(needle.angle, needle.color, 3)}
-            </g>
+            <OtherNeedle
+              key={`other-${index}`}
+              angle={needle.angle}
+              color={needle.color}
+              cx={cx}
+              cy={cy}
+              radius={radius}
+              animateReveal={animateReveal}
+              delay={index * 0.15}
+            />
           ))}
 
           {renderNeedle(angle, selfColor, 6)}
