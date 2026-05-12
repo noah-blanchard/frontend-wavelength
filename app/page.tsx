@@ -90,6 +90,8 @@ export default function Home() {
   const [name, setName] = useState("");
   const [roomCode, setRoomCode] = useState("");
   const [perPlayerNeedles, setPerPlayerNeedles] = useState(false);
+  const [localAngle, setLocalAngle] = useState(90);
+  const [isDragging, setIsDragging] = useState(false);
   const audioRef = useRef<AudioContext | null>(null);
   const lastRevealIdRef = useRef<string | null>(null);
   const isInRoom = Boolean(roomState);
@@ -202,6 +204,9 @@ export default function Home() {
   const showTarget =
     roomState?.phase === "reveal" || (roomState?.phase === "guide" && isGuide);
 
+  const currentAngle = roomState?.needleAngle ?? 90;
+  const isInteractive = roomState?.phase === "guess" && !isGuide;
+
   const lockedCount = roomState?.lockedPlayers?.length ?? 0;
   const requiredLocks = roomState?.requiredLocks ?? 0;
   const hasLocked = roomState?.lockedPlayers?.includes(playerId ?? "") ?? false;
@@ -237,6 +242,29 @@ export default function Home() {
       playRiseSfx();
     }
   }, [otherNeedles.length, roomState]);
+
+  useEffect(() => {
+    if (!isDragging) {
+      setLocalAngle(currentAngle);
+    }
+  }, [currentAngle, isDragging]);
+
+  useEffect(() => {
+    if (!isInteractive) {
+      setIsDragging(false);
+    }
+  }, [isInteractive]);
+
+  const handleAngleChange = (nextAngle: number) => {
+    setIsDragging(true);
+    setLocalAngle(nextAngle);
+  };
+
+  const handleAngleCommit = (nextAngle: number) => {
+    setLocalAngle(nextAngle);
+    setIsDragging(false);
+    updateNeedle(nextAngle);
+  };
 
   const phaseLabel = useMemo(() => {
     switch (roomState?.phase) {
@@ -456,8 +484,9 @@ export default function Home() {
                 transition={{ duration: 0.4 }}
               >
                 <Dial
-                  angle={roomState?.needleAngle ?? 90}
-                  onAngleChange={updateNeedle}
+                  angle={isInteractive ? localAngle : currentAngle}
+                  onAngleChange={isInteractive ? handleAngleChange : undefined}
+                  onAngleCommit={isInteractive ? handleAngleCommit : undefined}
                   targetAngle={roomState?.targetAngle ?? null}
                   targetSize={roomState?.targetSize ?? 30}
                   showTarget={showTarget}
@@ -466,7 +495,7 @@ export default function Home() {
                   otherNeedles={otherNeedles}
                   selfColor={selfColor}
                   animateReveal={roomState?.phase === "reveal"}
-                  interactive={roomState?.phase === "guess" && !isGuide}
+                  interactive={isInteractive}
                 />
 
                 {roomState?.phase === "guide" ? (

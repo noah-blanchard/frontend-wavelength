@@ -1,7 +1,7 @@
 "use client";
 
-import { animate, motion, useMotionValue } from "framer-motion";
-import { useEffect, useRef, type ChangeEvent } from "react";
+import { animate, motion, useMotionValue, useSpring } from "framer-motion";
+import { useCallback, useEffect, useRef } from "react";
 
 const clampAngle = (angle: number) => Math.max(0, Math.min(180, angle));
 
@@ -77,6 +77,7 @@ const OtherNeedle = ({
 type DialProps = {
   angle: number;
   onAngleChange?: (angle: number) => void;
+  onAngleCommit?: (angle: number) => void;
   targetAngle: number | null;
   targetSize: number;
   showTarget: boolean;
@@ -91,6 +92,7 @@ type DialProps = {
 export const Dial = ({
   angle,
   onAngleChange,
+  onAngleCommit,
   targetAngle,
   targetSize,
   showTarget,
@@ -104,6 +106,18 @@ export const Dial = ({
   const cx = 200;
   const cy = 200;
   const radius = 160;
+  const viewBoxWidth = 400;
+  const viewBoxHeight = 220;
+  const svgRef = useRef<SVGSVGElement>(null);
+  const isDraggingRef = useRef(false);
+
+  const selfRotation = useMotionValue(clampAngle(angle) - 90);
+  const selfRotationSpring = useSpring(selfRotation, {
+    stiffness: 300,
+    damping: 32,
+    mass: 0.9,
+  });
+  const selfNeedleRef = useRef<SVGGElement>(null);
 
   const targetSpan = Math.max(0, Math.min(180, targetSize));
   const targetStart =
@@ -111,10 +125,69 @@ export const Dial = ({
   const targetEnd =
     targetAngle === null ? null : clampAngle(targetAngle + targetSpan / 2);
 
-  const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
-    if (!onAngleChange) return;
-    onAngleChange(Number(event.target.value));
-  };
+  useEffect(() => {
+    selfRotation.set(clampAngle(angle) - 90);
+  }, [angle, selfRotation]);
+
+  useEffect(() => {
+    const applyTransform = (r: number) => {
+      selfNeedleRef.current?.setAttribute(
+        "transform",
+        `rotate(${r} ${cx} ${cy})`
+      );
+    };
+    applyTransform(selfRotationSpring.get());
+    const unsub = selfRotationSpring.on("change", applyTransform);
+    return () => unsub();
+  }, [cx, cy, selfRotationSpring]);
+
+  const getAngleFromPointer = useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      const svg = svgRef.current;
+      if (!svg) return clampAngle(angle);
+      const rect = svg.getBoundingClientRect();
+      if (!rect.width || !rect.height) return clampAngle(angle);
+      const localX = ((event.clientX - rect.left) / rect.width) * viewBoxWidth;
+      const localY = ((event.clientY - rect.top) / rect.height) * viewBoxHeight;
+      const rad = Math.atan2(cy - localY, localX - cx);
+      const deg = 180 - (rad * 180) / Math.PI;
+      return clampAngle(deg);
+    },
+    [angle, cx, cy, viewBoxWidth, viewBoxHeight]
+  );
+
+  const handlePointerDown = useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      if (!interactive) return;
+      event.preventDefault();
+      event.currentTarget.setPointerCapture(event.pointerId);
+      isDraggingRef.current = true;
+      const nextAngle = getAngleFromPointer(event);
+      onAngleChange?.(nextAngle);
+    },
+    [getAngleFromPointer, interactive, onAngleChange]
+  );
+
+  const handlePointerMove = useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      if (!interactive || !isDraggingRef.current) return;
+      event.preventDefault();
+      const nextAngle = getAngleFromPointer(event);
+      onAngleChange?.(nextAngle);
+    },
+    [getAngleFromPointer, interactive, onAngleChange]
+  );
+
+  const handlePointerUp = useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      if (!interactive || !isDraggingRef.current) return;
+      event.preventDefault();
+      isDraggingRef.current = false;
+      const nextAngle = getAngleFromPointer(event);
+      onAngleCommit?.(nextAngle);
+    },
+    [getAngleFromPointer, interactive, onAngleCommit]
+  );
 
   const renderTarget =
     showTarget &&
@@ -131,24 +204,11 @@ export const Dial = ({
       })()
     : null;
 
-  const renderNeedle = (needleAngle: number, color: string, width: number) => (
-    <g transform={`rotate(${clampAngle(needleAngle) - 90} ${cx} ${cy})`}>
-      <line
-        x1={cx}
-        y1={cy}
-        x2={cx}
-        y2={cy - radius + 12}
-        stroke={color}
-        strokeWidth={width}
-        strokeLinecap="round"
-      />
-    </g>
-  );
-
   return (
     <div className="relative w-full max-w-xl">
       <div className="relative">
         <svg
+          ref={svgRef}
           className="w-full"
           viewBox="0 0 400 220"
           role="img"
@@ -186,20 +246,30 @@ export const Dial = ({
             />
           ))}
 
-          {renderNeedle(angle, selfColor, 6)}
+          <motion.g ref={selfNeedleRef as React.Ref<SVGGElement>}>
+            <line
+              x1={cx}
+              y1={cy}
+              x2={cx}
+              y2={cy - radius + 12}
+              stroke={selfColor}
+              strokeWidth={6}
+              strokeLinecap="round"
+            />
+          </motion.g>
 
           <circle cx={cx} cy={cy} r="6" fill="#F8FAFC" />
         </svg>
 
         {interactive ? (
-          <input
-            type="range"
-            min={0}
-            max={180}
-            step={1}
-            value={clampAngle(angle)}
-            onChange={handleChange}
-            className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+          <motion.div
+            className="absolute inset-0 h-full w-full cursor-grab"
+            style={{ touchAction: "none" }}
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            onPointerCancel={handlePointerUp}
+            onPointerLeave={handlePointerUp}
             aria-label="Angle"
           />
         ) : null}
