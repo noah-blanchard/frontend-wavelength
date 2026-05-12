@@ -2,6 +2,10 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 ## Getting Started
 
+Create a `.env.local` file using `.env.example` and set:
+
+- `NEXT_PUBLIC_SOCKET_URL`: Public URL of the backend Socket.io server (Render).
+
 First, run the development server:
 
 ```bash
