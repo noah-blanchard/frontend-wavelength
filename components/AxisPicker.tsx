@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AnimatePresence, motion } from "framer-motion";
+import { useMediaQuery } from "../hooks/useMediaQuery";
 
 const AXIS_BANK = {
   pairs: [
@@ -272,8 +273,10 @@ const getRandomPairs = (pairs: AxisPair[], count: number) => {
 
 const AxisPicker = ({ onPick }: AxisPickerProps) => {
   const { t, i18n } = useTranslation();
+  const isMobile = useMediaQuery("(max-width: 639px)");
+  const suggestionCount = isMobile ? 1 : 3;
   const [suggestions, setSuggestions] = useState<AxisPair[]>(() =>
-    getRandomPairs(AXIS_BANK.pairs, 3)
+    getRandomPairs(AXIS_BANK.pairs, suggestionCount)
   );
 
   const locale = i18n.resolvedLanguage?.startsWith("fr")
@@ -304,7 +307,7 @@ const AxisPicker = ({ onPick }: AxisPickerProps) => {
         </div>
         <button
           type="button"
-          onClick={() => setSuggestions(getRandomPairs(AXIS_BANK.pairs, 3))}
+          onClick={() => setSuggestions(getRandomPairs(AXIS_BANK.pairs, suggestionCount))}
           className="rounded-full border border-white/15 px-4 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-slate-200 transition hover:border-emerald-200/80 hover:text-emerald-100"
         >
           {t("guideForm.axisBankShuffle")}
