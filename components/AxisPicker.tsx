@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { AnimatePresence, motion } from "framer-motion";
 
 const AXIS_BANK = {
   pairs: [
@@ -266,19 +267,39 @@ const AxisPicker = ({ onPick }: AxisPickerProps) => {
       </div>
 
       <div className="mt-4 grid gap-3 sm:grid-cols-3">
-        {suggestionContent.map((pair) => (
+        {suggestionContent.map((pair, index) => (
           <button
-            key={pair.id}
+            key={index}
             type="button"
             onClick={() => onPick(pair.left, pair.right)}
-            className="group flex h-full flex-col justify-between rounded-2xl border border-white/10 bg-linear-to-br from-white/10 via-white/5 to-transparent p-4 text-left transition hover:border-emerald-300/60 hover:shadow-[0_12px_30px_rgba(16,185,129,0.15)]"
+            className="group flex h-[180px] w-full flex-col justify-between rounded-2xl border border-white/10 bg-linear-to-br from-white/10 via-white/5 to-transparent p-4 text-left transition hover:border-emerald-300/60 hover:shadow-[0_12px_30px_rgba(16,185,129,0.15)]"
           >
             <div>
-              <p className="text-sm font-semibold text-slate-100">{pair.left}</p>
+              <AnimatePresence mode="wait">
+                <motion.p
+                  key={pair.id + "-left"}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="text-sm font-semibold text-slate-100"
+                >
+                  {pair.left}
+                </motion.p>
+              </AnimatePresence>
               <div className="mt-3 h-px w-8 bg-emerald-300/50" />
-              <p className="mt-3 text-sm font-semibold text-slate-100">
-                {pair.right}
-              </p>
+              <AnimatePresence mode="wait">
+                <motion.p
+                  key={pair.id + "-right"}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="mt-3 text-sm font-semibold text-slate-100"
+                >
+                  {pair.right}
+                </motion.p>
+              </AnimatePresence>
             </div>
             <div className="mt-4 text-xs font-semibold uppercase tracking-[0.25em] text-emerald-200/80 group-hover:text-emerald-100">
               {t("guideForm.axisBankUse")}
