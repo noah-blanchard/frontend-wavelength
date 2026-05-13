@@ -214,11 +214,12 @@ export const useSocket = () => {
   }, []);
 
   useEffect(() => {
+    connect();
     return () => {
       socketRef.current?.disconnect();
       socketRef.current = null;
     };
-  }, []);
+  }, [connect]);
 
   useEffect(() => {
     sessionIdRef.current = sessionId;
