@@ -3,6 +3,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import AxisPicker from "../components/AxisPicker";
 import { Dial } from "../components/Dial";
 import { useSocket } from "../hooks/useSocket";
 
@@ -34,6 +35,13 @@ const GuideForm = ({ onSubmit, onSfx }: GuideFormProps) => {
       <p className="text-sm text-emerald-200">
         {t("guideForm.hint")}
       </p>
+      <AxisPicker
+        onPick={(left, right) => {
+          setLeftExtreme(left);
+          setRightExtreme(right);
+          onSfx?.();
+        }}
+      />
       <div className="grid gap-3 sm:grid-cols-2">
         <input
           value={leftExtreme}

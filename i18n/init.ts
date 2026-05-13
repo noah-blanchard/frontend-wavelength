@@ -40,6 +40,10 @@ const resources = {
         rightPlaceholder: "Right extreme",
         cluePlaceholder: "Clue",
         submitTheme: "Submit theme",
+        axisBankTitle: "Axis bank",
+        axisBankHint: "Pick a ready-made pair or keep your own extremes.",
+        axisBankShuffle: "Shuffle",
+        axisBankUse: "Use this pair",
       },
       game: {
         roomCode: "Room {{code}}",
@@ -115,6 +119,10 @@ const resources = {
         rightPlaceholder: "Extreme droite",
         cluePlaceholder: "Indice",
         submitTheme: "Valider le theme",
+        axisBankTitle: "Banque d'axes",
+        axisBankHint: "Choisis un duo ou garde tes propres extremes.",
+        axisBankShuffle: "Relancer",
+        axisBankUse: "Utiliser ce duo",
       },
       game: {
         roomCode: "Salle {{code}}",
