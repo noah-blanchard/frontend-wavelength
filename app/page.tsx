@@ -107,9 +107,13 @@ export default function Home() {
   const audioRef = useRef<AudioContext | null>(null);
   const lastRevealIdRef = useRef<string | null>(null);
   const isInRoom = Boolean(roomState);
-  const currentLang = i18n.resolvedLanguage?.startsWith("fr") ? "fr" : "en";
+  const currentLang = i18n.resolvedLanguage?.startsWith("fr")
+    ? "fr"
+    : i18n.resolvedLanguage?.startsWith("zh")
+      ? "zh"
+      : "en";
 
-  const handleLocaleChange = (lang: "en" | "fr") => {
+  const handleLocaleChange = (lang: "en" | "fr" | "zh") => {
     i18n.changeLanguage(lang);
   };
 
@@ -399,6 +403,19 @@ export default function Home() {
                 }`}
               >
                 FR
+              </button>
+              <button
+                type="button"
+                onClick={() => handleLocaleChange("zh")}
+                aria-label={t("language.chinese")}
+                aria-pressed={currentLang === "zh"}
+                className={`rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] transition ${
+                  currentLang === "zh"
+                    ? "bg-emerald-300 text-slate-900"
+                    : "text-slate-300 hover:text-white"
+                }`}
+              >
+                ZH
               </button>
             </motion.div>
           </div>
